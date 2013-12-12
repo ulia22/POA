@@ -14,33 +14,60 @@ import edu.turtlekit2.warbot.team.state.StateRocketLauncher;
 
 public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 	
-	private boolean baseFound = false;
-	private boolean onDemand = false;
-	private JobsRocketLauncher jobs = JobsRocketLauncher.SEARCH;
-	private StateRocketLauncher state = StateRocketLauncher.INITIAL;
-	private Percept target = null;
+	private boolean baseFound;
+	private boolean onDemand;
+	
+	private long tick;
+	private int idBase;
+	
+	private JobsRocketLauncher jobs;
+	private StateRocketLauncher state;
+	
+	private Percept target;
 	
 	public BrainRocketLauncher(){
+		baseFound = false;
+		onDemand = false;
 		
+		tick = -1;
+		idBase = -1;
+		
+		jobs = JobsRocketLauncher.SEARCH;
+		state = StateRocketLauncher.INITIAL;
+		
+		target = null;
 	}
 	
 	@Override
 	public String action() {
-		if(!isReloaded()){
-			if(!isReloading()){
-				return "reload";
-			}
-		}
-		
-		while(isBlocked()){
-			setRandomHeading();
-		}
-
 		List<Percept> listeP = getPercepts();
 		List<WarMessage> listeM = getMessage();
 		
 		manageMessage(listeM);
 		managePercept(listeP);
+		
+		//Mise à jour du tick courrant grace à un message envoyé par la base (synchronisation des ticks).
+		if(tick > 0)
+			tick++;
+		else{
+			for(Percept p : listeP){
+				if(p.getType().equals("WarBase")){
+					sendMessage(p.getId(), MessageType.ASK_TICK.getMotCle(), null);
+					idBase = p.getId();
+				}
+			}
+		}
+				
+		//Si pas chargé on recharge.
+		if(!isReloaded() && !isReloading()){
+			return "reload";
+		}
+		
+		while(isBlocked()){
+			setRandomHeading();
+		}
+		
+		
 
 		switch(jobs){
 		
@@ -48,7 +75,7 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 				switch(state){
 					case INITIAL : 
 						if(onDemand){
-							jobs= JobsRocketLauncher.ATTACK;
+							jobs = JobsRocketLauncher.ATTACK;
 							state = StateRocketLauncher.GO_ATTACK_ASKED_TARGET;
 						}
 						else if(target == null){
@@ -56,27 +83,28 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 						}else{
 							jobs = JobsRocketLauncher.ATTACK;
 							state = StateRocketLauncher.ATTACK_TARGET;
-						}
+						};
 					break;
 				
-					case SEARCHING_TARGET :
+					case SEARCHING_TARGET : ;
 						break;
 					
 					default : state = StateRocketLauncher.INITIAL;
 				}
+			;
 			break;
 		
 		case ATTACK :
 			switch(state){
-				case INITIAL : break;
+				case INITIAL : 
+					
+					break;
 				
 				//attaque la cible
 				case ATTACK_TARGET :
 					if(target != null){
 						setAngleTurret(target.getAngle());
 						target = null;
-						jobs = JobsRocketLauncher.SEARCH;
-						state = StateRocketLauncher.INITIAL;
 						return "fire";
 					}else{
 						jobs = JobsRocketLauncher.SEARCH;
@@ -84,15 +112,21 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 					}
 				
 				// attaque cible par trigo
-				case GO_ATTACK_ASKED_TARGET : break;
+				case GO_ATTACK_ASKED_TARGET : 
+					setHeading(target.getAngle());
+					break;
 				
 				default : state = StateRocketLauncher.INITIAL;
 			}	
 		case DEFEND :
 			switch(state){
-				case INITIAL : ;
+				case INITIAL : 
+				onDemand = false;
+				target = null;
+				state = StateRocketLauncher.GO_DEF_BASE;
+				
 				break;
-			
+				
 				case GO_DEF_BASE:;
 				break;	
 			}
@@ -104,40 +138,69 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 		return "move";
 	}
 	
-	void manageMessage(List<WarMessage> liste){
-		for(WarMessage wm : liste){
-			if(wm.getMessage().matches(MessageType.BASE_ATTACKED.getPattern())){
-				setHeading(wm.getAngle());
-			}
-		}
-	}
-	
 	void managePercept(List<Percept> liste){
 		for(Percept p : liste){
 			if(p.getType().equals("WarBase") && !p.getTeam().equals(getTeam())){
-				//changement de state
+				/*//changement de state
 				jobs = JobsRocketLauncher.ATTACK;
 				state = StateRocketLauncher.GO_ATTACK_BASE;
 				//envoi de message
 				target = p;
-				baseFound = true;
+				baseFound = true;*/
 			}
 			else if(p.getType().equals("WarRocketLauncher") && !p.getTeam().equals(getTeam()) && !baseFound){
 				//changement de state
 				jobs = JobsRocketLauncher.ATTACK;
 				state = StateRocketLauncher.ATTACK_TARGET;
 				//envoi de message
+				broadcastMessage("WarRocketLauncher", MessageType.PERCEPT.getMotCle()+ p.getAngle()+" "+p.getDistance()+" "+p.getId()+" \"\""+p.getTeam()+"\"\" "+p.getType()+" "+p.getEnergy()+" "+p.getHeading(), null);
 				
 				target = p;
 			}
 			else if(p.getType().equals("WarExplorer") && !p.getTeam().equals(getTeam()) && !baseFound){
-				//changement de state
+				/*//changement de state
 				jobs = JobsRocketLauncher.ATTACK;
 				state = StateRocketLauncher.ATTACK_TARGET;
 				//envoi de message
 				
 				
-				target = p;
+				target = p;*/
+			}
+		}
+	}
+	
+	
+	
+
+	/**********************
+	 * Gérer les messages.*
+	 *********************/
+	
+	void manageMessage(List<WarMessage> liste){
+		for(WarMessage wm : liste){
+			
+			//Messages pour demander/mettre à jour le tick.
+			if(wm.getMessage().matches(MessageType.ASK_TICK.getPattern())){
+				sendMessage(wm.getSender(), MessageType.CURR_TICK.getMotCle()+tick, null);
+				
+			}else if(wm.getMessage().matches(MessageType.CURR_TICK.getPattern())){
+				String tickS = wm.getMessage().replaceAll(MessageType.CURR_TICK.getPattern(), "$3");
+				tick = Long.parseLong(tickS)+1;
+			}
+			
+			//Message pour gérer la demande "where".
+			else if(wm.getMessage().matches(MessageType.WHERE.getPattern())){
+				sendMessage(wm.getSender(), MessageType.ICI.getMotCle(), null);
+			}
+			
+			//Message demande Percept
+			else if(wm.getMessage().matches(MessageType.PERCEPT.getPattern())){
+				if(target == null){
+					VirtualPercept vp = VirtualPercept.createVP(wm);
+					target = vp;
+					jobs = JobsRocketLauncher.ATTACK;
+					state = StateRocketLauncher.GO_ATTACK_ASKED_TARGET;
+				}
 			}
 		}
 	}
@@ -169,5 +232,5 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 			}
 		}
 	}
-	
+
 }

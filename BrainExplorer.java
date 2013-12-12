@@ -115,11 +115,14 @@ public class BrainExplorer extends WarBrain implements MessageEncapsule{
 						if(target != null){
 							if(target.getDistance() < WarFood.MAX_DISTANCE_TAKE){
 								setAgentToGive(target.getId());
-								angBase = 0;
-								distBase = -1;
-								target = null;
-								state = StateExplorer.INITIAL;
-								return "give";
+								if(!emptyBag()){
+									return "give";
+								}else{
+									angBase = 0;
+									distBase = -1;
+									target = null;
+									state = StateExplorer.INITIAL;
+								}
 							}
 						}
 					}

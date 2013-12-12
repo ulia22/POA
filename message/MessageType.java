@@ -19,7 +19,11 @@ public enum MessageType {
 	I_DEFEND("JeDefend","^JeDefend$"),
 	
 	BASE_SPYED("BaseSpy", "^BaseSpy$"),
-	I_RETURN("return","^return$")
+	I_RETURN("return","^return$"),
+	
+	// "Percept angle distance id ""team"" type energy heading"
+	//Example : "Percept 32 65 85 team WarBase 500 12.6"
+	PERCEPT("Percept ", "^Percept ([\\d\\-]+) (\\d+) (\\d+) \"\"(.*)\"\" (\\w+) (\\d+) ([\\d\\.])+$")
 	;
 	
 	private final String motCle;
