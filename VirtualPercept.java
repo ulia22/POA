@@ -24,15 +24,13 @@ public class VirtualPercept extends Percept{
 	 * @param energy
 	 * @param heading
 	 */
-	public VirtualPercept(int angleAC, int distanceAC, int idC, String teamC,
-			String typeC, int energyC, double headingC) {
+	public VirtualPercept(int angleAC, int distanceAC, int idC, String teamC, String typeC, int energyC, double headingC) {
 		super(angleAC, distanceAC, idC, teamC, typeC, energyC, headingC);
 		// TODO Auto-generated constructor stub
 	}
 	
 	/**
 	 * Permet de créer un VirtualPercept à partir d'un message recu de B.
-	 * 
 	 * @return un vitual percept avec des angles et des distance correctes par rapport à l'agent appelant.
 	 */
 	public static VirtualPercept createVP(WarMessage wm){
@@ -49,9 +47,7 @@ public class VirtualPercept extends Percept{
 		int energyC = Integer.parseInt(msg.replaceAll(MessageType.PERCEPT.getPattern(), "$6"));
 		double headingC = Double.parseDouble(msg.replaceAll(MessageType.PERCEPT.getPattern(), "$7"));
 		
-		int vectAC[] = computeCoorC(angleBC, distanceBC, wm);
-		
-		
+		int vectAC[] = computeCoorC(angleBC, distanceBC, wm);		
 		return new VirtualPercept(vectAC[0], vectAC[1], idC, teamC, typeC, energyC, headingC);
 	}
 
@@ -59,20 +55,18 @@ public class VirtualPercept extends Percept{
 	private static int[] computeCoorC(int angleBC, int distanceBC, WarMessage wm){
 		double xb, yb, xc, yc;
 		double ACd = 0.0;
-		xb = wm.getDistance()*Math.cos(Math.PI * wm.getAngle()/180);
-		yb = wm.getDistance()*Math.sin(Math.PI * wm.getAngle()/180);
+
+		xb = wm.getDistance()*Math.cos(Math.toDegrees(wm.getAngle()));
+		yb = xb = wm.getDistance()*Math.sin(Math.toDegrees(wm.getAngle()));
 		
-		xc = distanceBC*Math.cos(Math.PI*angleBC/180)+xb;
-		yc = distanceBC*Math.sin(Math.PI*angleBC/180)+yb;
+		xc = distanceBC*Math.cos(Math.toDegrees(angleBC)) + xb;
+		yc = distanceBC*Math.sin(Math.toDegrees(angleBC)) + yb;
 		
-		double square = (double)( ((Math.abs((long)xc))^2)+((Math.abs((long)yc))^2) );
-		ACd = Math.sqrt(square);
-		
-		double angleACd = Math.acos(xc/ACd);
-		angleACd = 180*angleACd/Math.PI;
-		
+		//a quoi sa te sert �a ?
+		double square = Math.sqrt((Math.pow(xc, 2) + Math.pow(yc,2)));
+		double angleACd = Math.toRadians( Math.acos(xc/ACd));
+			
 		int res[] = {(int)angleACd, (int)ACd};
 		return res;
-		
 	}
 }
