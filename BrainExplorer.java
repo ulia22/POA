@@ -111,8 +111,8 @@ public class BrainExplorer extends WarBrain implements MessageEncapsule{
 						setHeading(angBase);
 						target = null;
 						for(Percept p : liste){
-							if(p.getType().equals("WarBase")){
-								if(target == null){target = p;}
+							if(p.getType().equals("WarBase") && target == null){
+								target = p;
 							}
 						}
 						if(target != null){

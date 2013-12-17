@@ -21,6 +21,10 @@ public enum MessageType {
 	BASE_SPYED("BaseSpy", "^BaseSpy$"),
 	I_RETURN("return","^return$"),
 	
+	BASE_END_ALERT("BaseEndAlert","^BaseEndAlert$"),
+	
+	BASE_ENEMY_FOUND("Founded", "^Founded$"),
+	
 	// "Percept angle distance id ""team"" type energy heading"
 	//Example : "Percept 32 65 85 team WarBase 500 12.6"
 	PERCEPT("Percept ", "^Percept ([\\d\\-]+) (\\d+) (\\d+) \"\"(.*)\"\" (\\w+) (\\d+) ([\\d\\.])+$")

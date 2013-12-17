@@ -11,6 +11,7 @@ import edu.turtlekit2.warbot.team.message.MessageType;
 
 public class BrainBase extends WarBrain implements MessageEncapsule{
 	private long tick = 0;
+	private boolean onAlert = false;
 
 	public BrainBase(){
 		
@@ -21,8 +22,10 @@ public class BrainBase extends WarBrain implements MessageEncapsule{
 		tick++;
 
 		List<WarMessage> liste = getMessage();
+		List<Percept> listP = getPercepts();
 		
 		manageMessage(liste);
+		managePercept(listP);
 		
 		if(!emptyBag()){
 			return "eat";
@@ -31,6 +34,8 @@ public class BrainBase extends WarBrain implements MessageEncapsule{
 			setNextAgentCreate("Explorer");
 			return "create";
 		}
+		
+		onAlert = false;
 		
 		return "idle";
 	}
@@ -61,12 +66,17 @@ public class BrainBase extends WarBrain implements MessageEncapsule{
 				//cas du rocket launcher
 				if(p.getType().equals("WarRocketLauncher")){
 					broadcastMessage("WarRocketLauncher", MessageType.BASE_ATTACKED.getMotCle(), null);
+					onAlert = true;
 				}
 				//cas des explorer
 				else if(p.getType().equals("WarExplorer")){
 					broadcastMessage("WarRocketLauncher", MessageType.BASE_SPYED.getMotCle(), null);
 				}
 			}
+		}
+		
+		if(!onAlert){
+			broadcastMessage("WarRocketLauncher", MessageType.BASE_END_ALERT.getMotCle(), null);
 		}
 	}
 	

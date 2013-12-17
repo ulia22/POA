@@ -11,7 +11,9 @@ import edu.turtlekit2.warbot.percepts.Percept;
 import edu.turtlekit2.warbot.team.message.MessageEncapsule;
 import edu.turtlekit2.warbot.team.message.MessageType;
 import edu.turtlekit2.warbot.team.state.JobsRocketLauncher;
+import edu.turtlekit2.warbot.team.state.StateExplorer;
 import edu.turtlekit2.warbot.team.state.StateRocketLauncher;
+import edu.turtlekit2.warbot.waritems.WarFood;
 import edu.turtlekit2.warbot.waritems.WarRocket;
 
 public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
@@ -21,7 +23,12 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 	
 	private long tick;
 	private int idBase;
+	private int angBase = -1;
+	private int distBase = -1;
 	
+	private int anglAtck = -1;
+	private int distAtck = -1;
+
 	private JobsRocketLauncher jobs;
 	private StateRocketLauncher state;
 	
@@ -68,7 +75,6 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 		while(isBlocked()){
 			setRandomHeading();
 		}
-		
 		
 
 		switch(jobs){
@@ -127,19 +133,46 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 					}
 					break;
 				
+				case ATTACK_WARBASE:
+					//on peut modifier en demandant un autre placement
+					if(distAtck < 15){
+						setHeading(anglAtck);
+						setAngleTurret(anglAtck);
+						return "fire";
+					}
+					break;
+					
 				default : state = StateRocketLauncher.INITIAL;
 			}	
 		case DEFEND :
 			switch(state){
 				case INITIAL : 
-				onDemand = false;
-				target = null;
-				state = StateRocketLauncher.GO_DEF_BASE;
-				
+					target = null;
+					state = StateRocketLauncher.GO_DEF_BASE;
 				break;
 				
-				case GO_DEF_BASE:;
-				break;	
+				//doit aller a la base, s'arreter a une certaine distance puis detruire tout ce qui bouge
+				// voir apres si attaque coordonnée ou non
+				case GO_DEF_BASE:
+					if(idBase != -1){
+						//partie pour demander ou se trouve la base
+						if(distBase < 0){
+								sendMessage(idBase, MessageType.WHERE.getMotCle(), null);
+								return "idle";
+						}
+						//partie pour changement d 'etat a proximité de la base
+						else if(distBase < 50){
+							jobs = JobsRocketLauncher.ATTACK;
+							state = StateRocketLauncher.INITIAL;
+							idBase = -1;
+							distBase = -1;
+						}
+						else{
+							setHeading(angBase);
+						}
+					}
+					System.out.println(idBase);
+					break;
 			}
 			break;
 			
@@ -156,7 +189,14 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 				//changement de state
 				jobs = JobsRocketLauncher.ATTACK;
 				state = StateRocketLauncher.GO_ATTACK_BASE;
-				//envoi de message
+				
+				String[] temp = new String[2];
+				temp[1] = p.getAngle()+"";
+				temp[2] = p.getDistance()+"";
+				anglAtck = p.getAngle();
+				distAtck = p.getDistance();
+				
+				broadcastMessage("WarRocketLauncher", MessageType.BASE_ENEMY_FOUND.getMotCle(), temp);
 				target = p;
 				baseFound = true;
 			}
@@ -166,7 +206,7 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 				jobs = JobsRocketLauncher.ATTACK;
 				state = StateRocketLauncher.ATTACK_TARGET;
 				//envoi de message
-				broadcastMessage("WarRocketLauncher", MessageType.PERCEPT.getMotCle()+ p.getAngle()+" "+p.getDistance()+" "+p.getId()+" \"\""+p.getTeam()+"\"\" "+p.getType()+" "+p.getEnergy()+" "+p.getHeading(), null);
+				//broadcastMessage("WarRocketLauncher", MessageType.PERCEPT.getMotCle()+ p.getAngle()+" "+p.getDistance()+" "+p.getId()+" \"\""+p.getTeam()+"\"\" "+p.getType()+" "+p.getEnergy()+" "+p.getHeading(), null);
 				
 				target = p;
 			}
@@ -208,10 +248,43 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 			//Message demande Percept
 			else if(wm.getMessage().matches(MessageType.PERCEPT.getPattern())){
 				if(target == null){
-					target = VirtualPercept.createVP(wm);
-					jobs = JobsRocketLauncher.ATTACK;
-					state = StateRocketLauncher.GO_ATTACK_ASKED_TARGET;
+					// erreur viens de la, on attaque aux coordonnée de l'attaquant qui as vu,
+					// il faut recalculer a partir des infos du messages en lui meme, et du contenu du message
+					// deuxuement un test de distance pour voir si c'est la peine ou non d'executer l'ordre
+					if(wm.getDistance() < 50){
+						target = VirtualPercept.createVP(wm);
+						jobs = JobsRocketLauncher.ATTACK;
+						state = StateRocketLauncher.GO_ATTACK_ASKED_TARGET;
+					}
 				}
+			}
+			else if(wm.getMessage().matches(MessageType.BASE_ATTACKED.getPattern())){
+				jobs = JobsRocketLauncher.DEFEND;
+				state = StateRocketLauncher.GO_DEF_BASE;
+				
+			}
+			else if(wm.getMessage().matches(MessageType.BASE_SPYED.getPattern())){
+				//cas base surement reperer
+				
+			}
+			else if(wm.getMessage().matches(MessageType.BASE_END_ALERT.getPattern())){
+				//cas de fin d'attaque de la base
+				jobs = JobsRocketLauncher.SEARCH;
+				state = StateRocketLauncher.INITIAL;
+			}
+			//Partie pour la demande "where".
+			else if(wm.getMessage().matches(MessageType.ICI.getPattern()) && wm.getType().equals("WarBase")){
+				angBase = wm.getAngle();
+				distBase = wm.getDistance();
+				idBase = wm.getSender();
+			}
+			else if(wm.getMessage().matches(MessageType.BASE_ENEMY_FOUND.getPattern())){
+				anglAtck = Integer.parseInt(wm.getContent()[0]);
+				if(distAtck < Integer.parseInt(wm.getContent()[1])){
+					distAtck = Integer.parseInt(wm.getContent()[1]);
+				}
+				jobs = JobsRocketLauncher.ATTACK;
+				state = StateRocketLauncher.GO_ATTACK_BASE;
 			}
 		}
 	}
