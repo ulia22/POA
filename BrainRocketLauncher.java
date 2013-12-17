@@ -5,12 +5,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.turtlekit2.warbot.WarBrain;
+import edu.turtlekit2.warbot.controller.WarLauncher;
 import edu.turtlekit2.warbot.message.WarMessage;
 import edu.turtlekit2.warbot.percepts.Percept;
 import edu.turtlekit2.warbot.team.message.MessageEncapsule;
 import edu.turtlekit2.warbot.team.message.MessageType;
 import edu.turtlekit2.warbot.team.state.JobsRocketLauncher;
 import edu.turtlekit2.warbot.team.state.StateRocketLauncher;
+import edu.turtlekit2.warbot.waritems.WarRocket;
 
 public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 	
@@ -113,7 +115,16 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 				
 				// attaque cible par trigo
 				case GO_ATTACK_ASKED_TARGET : 
-					setHeading(target.getAngle());
+					if(target == null){
+						jobs = JobsRocketLauncher.SEARCH;
+						state = StateRocketLauncher.INITIAL;
+					}else{
+						//faire un test de distance pour voir si a porter de feux
+						setHeading(target.getAngle());
+						setAngleTurret(target.getAngle());
+						target = null;
+						return "fire";
+					}
 					break;
 				
 				default : state = StateRocketLauncher.INITIAL;
@@ -140,14 +151,16 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 	
 	void managePercept(List<Percept> liste){
 		for(Percept p : liste){
+			//cas de detection de la warBase adverse
 			if(p.getType().equals("WarBase") && !p.getTeam().equals(getTeam())){
-				/*//changement de state
+				//changement de state
 				jobs = JobsRocketLauncher.ATTACK;
 				state = StateRocketLauncher.GO_ATTACK_BASE;
 				//envoi de message
 				target = p;
-				baseFound = true;*/
+				baseFound = true;
 			}
+			//cas de detection de tank ennemi
 			else if(p.getType().equals("WarRocketLauncher") && !p.getTeam().equals(getTeam()) && !baseFound){
 				//changement de state
 				jobs = JobsRocketLauncher.ATTACK;
@@ -157,14 +170,13 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 				
 				target = p;
 			}
+			//cas de detection d'explorer ennemi
 			else if(p.getType().equals("WarExplorer") && !p.getTeam().equals(getTeam()) && !baseFound){
-				/*//changement de state
+				//changement de state
 				jobs = JobsRocketLauncher.ATTACK;
 				state = StateRocketLauncher.ATTACK_TARGET;
 				//envoi de message
-				
-				
-				target = p;*/
+				target = p;
 			}
 		}
 	}
@@ -196,8 +208,7 @@ public class BrainRocketLauncher extends WarBrain implements MessageEncapsule{
 			//Message demande Percept
 			else if(wm.getMessage().matches(MessageType.PERCEPT.getPattern())){
 				if(target == null){
-					VirtualPercept vp = VirtualPercept.createVP(wm);
-					target = vp;
+					target = VirtualPercept.createVP(wm);
 					jobs = JobsRocketLauncher.ATTACK;
 					state = StateRocketLauncher.GO_ATTACK_ASKED_TARGET;
 				}

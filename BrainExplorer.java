@@ -20,6 +20,7 @@ public class BrainExplorer extends WarBrain implements MessageEncapsule{
 	private int angBase;
 	private int distBase;
 	private long tick;
+	private int energyInit;
 	
 	private Percept target = null;
 	
@@ -32,6 +33,7 @@ public class BrainExplorer extends WarBrain implements MessageEncapsule{
 		this.target = null;
 		this.angBase = 0;
 		this.distBase = -1;
+		this.energyInit=0;
 	}
 	
 	@Override
@@ -49,6 +51,7 @@ public class BrainExplorer extends WarBrain implements MessageEncapsule{
 					idBase = p.getId();
 				}
 			}
+			this.energyInit = this.getEnergy();
 		}
 		
 		//On gère les messages recu à ce tick.
@@ -135,14 +138,31 @@ public class BrainExplorer extends WarBrain implements MessageEncapsule{
 		
 		case SPY : 
 			switch(state){
-			case INITIAL : ;
-			case SEARCH_ENEMY_BASE : ;
-			case RUN_AWAY : ;
-			default : ;
+			case INITIAL : 
+				if(getEnergy() < this.energyInit/3){
+					//autre condition mais peut permettre la fuite ou r�afectation a la recherche de nouriture
+					this.state = StateExplorer.RUN_AWAY;
+				}else{
+					this.state = StateExplorer.SEARCH_ENEMY_BASE;
+				}
+			case SEARCH_ENEMY_BASE : 
+				for(Percept p : liste){
+					if(p.getTeam() != this.getTeam()){
+						if(p.getType().equals("WarBase")){
+							//envoi message aux tank avec le percept / reste sur place ?
+						}
+						else if(p.getType().equals("WarRocketLauncher")){
+							//envoi des messages aux tanks pour coordonner les tirs avec le percpet
+						}
+					}
+				}
+			case RUN_AWAY : 
+				break; //return move;
+			default :
+				job = JobsExplorer.SPY;
+				state = StateExplorer.INITIAL;
 			}
 		break;
-		
-		case SCOUT : break;
 		
 		default : 
 			job = JobsExplorer.GATHERER;
